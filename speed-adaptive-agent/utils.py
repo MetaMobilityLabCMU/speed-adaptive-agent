@@ -7,13 +7,11 @@ import torch.optim as optim
 from mushroom_rl.core.serialization import *
 from mushroom_rl.policy import GaussianTorchPolicy
 
-from imitation_lib.imitation import GAIL_TRPO, VAIL_TRPO
-from imitation_lib.utils import FullyConnectedNetwork, DiscriminatorNetwork, NormcInitializer, \
-    Standardizer, GailDiscriminatorLoss, VariationalNet, VDBLoss
+from imitation_lib.imitation import VAIL_TRPO
+from imitation_lib.utils import FullyConnectedNetwork, NormcInitializer, Standardizer, VariationalNet, VDBLoss
 
-from custom_vail import SpeedVAIL
 import pickle
-
+from speed_vail import SpeedVAIL
 
 def get_agent(env_id, mdp, use_cuda, sw, conf_path=None):
 
@@ -128,9 +126,7 @@ def create_speed_vail_agent(mdp, sw, use_cuda, std_0, info_constraint, lr_beta, 
                       last_policy_activation):
     mdp_info = deepcopy(mdp.info)
 
-    # with open('locomujoco_speeds_dataset_1113_rootspeed125.pkl', 'rb') as f:
-    #     expert_data = pickle.load(f)
-    with open('locomujoco_speeds_dataset_55_speeds_0025_increment.pkl', 'rb') as f:
+    with open('locomujoco_13_speeds_dataset.pkl', 'rb') as f:
         expert_data = pickle.load(f)
 
     trpo_standardizer = Standardizer(use_cuda=use_cuda)

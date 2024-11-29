@@ -20,7 +20,7 @@ def linear_transformation(control_gait_phase, control_angle, linear_models, join
     transformed_angle = np.add(control_angle, np.add(angle_slopes * (speed - root_speed), angle_intercepts))
     return transformed_gait_phase, transformed_angle
 
-def transform_data(data, transform, linear_models, root_speed=1.2):
+def transform_data(data, transform, linear_models, root_speed=1.25):
     transformed_data = dict()
     
     for speed in tqdm(data, desc='Transforming Data'):
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 				'Angle': control_ys
 			}
 
-	root_speed = 1.2
+	root_speed = 1.25
 	linear_models = {
 		'Root Speed': root_speed
 	}

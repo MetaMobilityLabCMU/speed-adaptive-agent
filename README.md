@@ -2,8 +2,8 @@
 code for ICORR 2025 Speed Adaptive Agent paper
 
 # TODO
-### code for training
+### code for generating synthetic dataset, link to dataset
+    where to put the dataset?
+### code for training (done)
 ### code for evaluation
-### link to dataset
-### code for generating synthetic dataset
 ### write README.md

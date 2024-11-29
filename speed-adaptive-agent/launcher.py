@@ -9,10 +9,10 @@ if __name__ == '__main__':
 
     N_SEEDS = 1
 
-    launcher = Launcher(exp_name='13_speeds_reward_ratio_065_185',
+    launcher = Launcher(exp_name='13_speeds_reward_ratio',
                         exp_file='experiment',
                         n_seeds=N_SEEDS,
-                        n_exps_in_parallel=2, 
+                        n_exps_in_parallel=1, 
                         use_timestamp=True,
                         )
 
@@ -22,7 +22,8 @@ if __name__ == '__main__':
                           n_eval_episodes=5,
                           n_steps_per_fit=1000,
                           use_cuda=USE_CUDA,
-                          env_id="HumanoidTorque.walk",)
+                          env_id="HumanoidTorque.walk",
+                          curriculum='progression',)
 
     reward_ratios = [0.3]
 

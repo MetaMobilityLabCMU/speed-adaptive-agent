@@ -3,9 +3,14 @@ from gymnasium import spaces
 import numpy as np
 
 
-class SpeedDomainRandomizationWrapper(gym.Wrapper):
+class SpeedWrapper(gym.Wrapper):
     def __init__(self, env, speed_range):
-        super(SpeedDomainRandomizationWrapper, self).__init__(env)
+        """
+        Args:
+            env: The environment to wrap.
+            speed_range: A tuple of the form (min, max) specifying the range of speeds to be used.
+        """
+        super(SpeedWrapper, self).__init__(env)
         self.speed_range = speed_range
         self.set_operate_speed()
 

@@ -3,18 +3,15 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from experiment_launcher import run_experiment
-from mushroom_rl.core import Agent
-from custom_core import SpeedCore
 from mushroom_rl.utils.dataset import compute_J, compute_episodes_length
 from mushroom_rl.core.logger.logger import Logger
-
 from imitation_lib.utils import BestAgentSaver
-
 from loco_mujoco import LocoEnv
 from utils import get_agent, ProgressionCurriculum, RandomCurriculum, compute_mean_speed
 from tqdm import tqdm
 
-from custom_env_wrapper import SpeedDomainRandomizationWrapper
+from speed_core import SpeedCore
+from speed_env_wrapper import SpeedWrapper
 
 def experiment(curriculum_type: str = 'progression', 
                reward_ratio: float = 0.3, 
@@ -54,7 +51,7 @@ def experiment(curriculum_type: str = 'progression',
     print(f"Starting training {env_id}...")
     # create environment, agent and core
     mdp = LocoEnv.make(env_id, headless=True)
-    mdp = SpeedDomainRandomizationWrapper(mdp, (speed_range[0], speed_range[-1]))
+    mdp = SpeedWrapper(mdp, (speed_range[0], speed_range[-1]))
     _ = mdp.reset()
 
     agent = get_agent(env_id, mdp, use_cuda, sw)
