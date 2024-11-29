@@ -1,4 +1,5 @@
 import yaml
+import numpy as np
 
 import torch.nn.functional as F
 import torch.optim as optim
@@ -205,7 +206,7 @@ def create_speed_vail_agent(mdp, sw, use_cuda, std_0, info_constraint, lr_beta, 
                       demonstration_collections=expert_data, **alg_params)
     return agent
 
-class SineCurriculum():
+class ProgressionCurriculum():
     def __init__(self, speed_range):
         self.speed_range = speed_range
         self.idx = round(len(self.speed_range)/2)
@@ -217,6 +218,14 @@ class SineCurriculum():
         if self.idx == 0 and self.direction == -1:
             self.direction = 1
         self.idx = self.idx + self.direction
+        return target_speed
+
+class RandomCurriculum():
+    def __init__(self, speed_range):
+        self.speed_range = speed_range
+        self.rng = np.random.default_rng()
+    def get_target_speed(self):
+        target_speed = self.rng.choice(self.speed_range, 1)[0]
         return target_speed
 
 def compute_mean_speed(env, dataset):

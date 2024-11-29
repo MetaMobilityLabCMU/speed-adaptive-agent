@@ -9,15 +9,10 @@ if __name__ == '__main__':
 
     N_SEEDS = 1
 
-    launcher = Launcher(exp_name='14_speeds_reward_ratio_055_185',
-                        exp_file='experiment-sine-curriculum',
+    launcher = Launcher(exp_name='13_speeds_reward_ratio_065_185',
+                        exp_file='experiment',
                         n_seeds=N_SEEDS,
-                        # n_cores=1,  # only used for slurm
-                        # memory_per_core=1500,   # only used for slurm
-                        n_exps_in_parallel=2,  # should not be used in slurm
-                        # days=2,     # only used for slurm
-                        # hours=0,    # only used for slurm
-                        # minutes=0,  # only used for slurm
+                        n_exps_in_parallel=2, 
                         use_timestamp=True,
                         )
 
@@ -30,7 +25,6 @@ if __name__ == '__main__':
                           env_id="HumanoidTorque.walk",)
 
     reward_ratios = [0.3]
-    # reward_ratios = [0, 0.1, 0.2, 0.6, 0.7, 0.8, 0.9, 1]
 
     for reward_ratio in reward_ratios:
         launcher.add_experiment(reward_ratio__=reward_ratio, **default_params)

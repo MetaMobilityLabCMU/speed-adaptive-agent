@@ -1,6 +1,4 @@
 import os
-os.environ['MUJOCO_GL'] = 'egl'
-
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -13,12 +11,12 @@ from mushroom_rl.core.logger.logger import Logger
 from imitation_lib.utils import BestAgentSaver
 
 from loco_mujoco import LocoEnv
-from utils import get_agent, SineCurriculum, compute_mean_speed
+from utils import get_agent, ProgressionCurriculum, RandomCurriculum, compute_mean_speed
 from tqdm import tqdm
 
 from custom_env_wrapper import SpeedDomainRandomizationWrapper
 
-def experiment(fix_training_epoch: int = 0, 
+def experiment(curriculum_type: str = 'progression', 
                reward_ratio: float = 0.3, 
                env_id: str = None,
                n_epochs: int = 500,
@@ -30,7 +28,8 @@ def experiment(fix_training_epoch: int = 0,
                results_dir: str = './logs',
                use_cuda: bool = False,
                seed: int = 0):
-
+    
+    os.environ['MUJOCO_GL'] = 'egl'
     np.random.seed(seed)
     torch.random.manual_seed(seed)
 
@@ -41,14 +40,16 @@ def experiment(fix_training_epoch: int = 0,
     logger = Logger(results_dir=results_dir, log_name="logging", seed=seed, append=True)    # numpy
     agent_saver = BestAgentSaver(save_path=results_dir, n_epochs_save=n_epochs_save)
 
-    # speed_range = np.round(np.linspace(0.50, 1.85, 55), 3)
-    # speed_range = np.round(np.linspace(0.5, 1.85, 28), 2)
-    speed_range = np.round(np.linspace(0.55, 1.85, 14), 2)
-
-
-    rng = np.random.default_rng()
+    speed_range = np.round(np.linspace(0.65, 1.85, 13), 2)
     print(f'speed range: {speed_range}')
-    curriculum = SineCurriculum(speed_range)
+
+    print(f'curriculum type: {curriculum_type}')
+    if curriculum_type == 'progression':
+        curriculum = ProgressionCurriculum(speed_range)
+    elif curriculum_type == 'random':
+        curriculum = RandomCurriculum(speed_range)
+    else:
+        raise ValueError(f'Unknown curriculum type: {curriculum_type}')
 
     print(f"Starting training {env_id}...")
     # create environment, agent and core
@@ -59,22 +60,13 @@ def experiment(fix_training_epoch: int = 0,
     agent = get_agent(env_id, mdp, use_cuda, sw)
     agent._env_reward_frac = reward_ratio
     print(f'env_reward_frac = {agent._env_reward_frac}')
-    print(f'fix training epoch = {fix_training_epoch}')
-    # agent = Agent.load("logs/locomujoco_speed_domain_randomization_large_speed_range/env_id___HumanoidTorque.walk/0/agent_epoch_3914_J_962.670273.msh")
     core = SpeedCore(agent, mdp)
 
     for epoch in tqdm(range(n_epochs)):
-        if epoch < fix_training_epoch:
-            target_speed = 1.25
-        else:
-            target_speed = curriculum.get_target_speed()
-            # target_speed = rng.choice(speed_range, 1)[0]
+        target_speed = curriculum.get_target_speed()
 
         # update the environment target speed
         mdp.set_operate_speed(target_speed)
-        # reward_params = dict(target_velocity=target_speed)
-        # mdp._reward_function = mdp._get_reward_function(reward_type="target_velocity", reward_params=reward_params)
-
         # train
         core.learn(n_steps=n_steps_per_epoch, n_steps_per_fit=n_steps_per_fit, quiet=True, render=False, target_speed=target_speed)
         # evaluate
