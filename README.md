@@ -12,7 +12,7 @@ code for ICORR 2025 Speed Adaptive Agent paper
 
 
 ## TODO
-1. code for generating synthetic dataset
+1. matlab code for generating synthetic dataset
 2. code for training
 3. code for evaluation
 4. write README.md

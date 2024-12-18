@@ -16,6 +16,7 @@ from speed_vail import SpeedVAIL
 import mujoco
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks
+import tqdm
 
 def get_agent(env_id, mdp, use_cuda, sw, conf_path=None):
 

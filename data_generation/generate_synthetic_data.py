@@ -5,10 +5,19 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.interpolate import CubicSpline, PchipInterpolator
 import os
+os.environ['MUJOCO_GL'] = 'egl'
 import copy
 import pickle 
 
 from utils import *
+
+def get_control_points(cycle, normalize=False):
+    cycle_length = len(cycle)
+    points = [round(cycle_length * 0.05 * x) for x in range(20)]
+    points.append(cycle_length -1)
+    if normalize:
+        points = [point*100/cycle_length for point in points]
+    return points
 
 def linear_transformation(control_gait_phase, control_angle, linear_models, joint, speed, root_speed):
     assert len(control_gait_phase) == linear_models[joint]['num_control_point']
@@ -20,43 +29,37 @@ def linear_transformation(control_gait_phase, control_angle, linear_models, join
     transformed_angle = np.add(control_angle, np.add(angle_slopes * (speed - root_speed), angle_intercepts))
     return transformed_gait_phase, transformed_angle
 
-def transform_data(data, transform, linear_models, root_speed=1.25):
-    transformed_data = dict()
-    
-    for speed in tqdm(data, desc='Transforming Data'):
-        transformed_data[speed] = {}
-        
-        for subject in data[root_speed]:
-            transformed_data[speed][subject] = dict()
-            transformed_data[speed][subject]['mean_length'] = data[root_speed][subject]['mean_length']
-            new_cycles = {}
-            
-            for key in ['Hip', 'Knee', 'Ankle']:
-                joint_cycles = data[root_speed][subject]['cycles'][key]
-                if key not in new_cycles:
-                    new_cycles[key] = []
-    
-                for cycle in joint_cycles:
-                    cycle_length = len(cycle)
-                    idx = np.arange(cycle_length)
+def generate_data(cycles, transform, linear_models, root_speed=1.25):
+	speeds = np.round(np.linspace(0.65, 1.85, 13), 2)
+	transformed_data = dict()
+	for speed in tqdm(speeds, desc='Generating Synthetic Data'):
+		transformed_data[speed] = {}
+		for joint in cycles:
+			transformed_data[speed][joint] = []
+			for cycle in cycles[joint]:
+				cycle_length = len(cycle)
+				idx = np.arange(cycle_length)
+				if 'knee' in joint:
+					cycle = -1*cycle
 
-                    control_gait_phase = joint_peaks(cycle, joint=key)
-                    control_angle = np.interp(control_gait_phase, idx, cycle)
-                    
-                    # apply transformation
-                    transformed_gait_phase, transformed_angle = transform(control_gait_phase, control_angle, linear_models, key, speed, root_speed)
-                    Pchip = PchipInterpolator(transformed_gait_phase, transformed_angle, extrapolate='period')
-                    
-                    new_cycle = Pchip(idx)
-                    new_cycles[key].append(new_cycle)
-
-            transformed_data[speed][subject]['cycles'] = new_cycles
-            
-    return transformed_data
+				if joint == 'q_pelvis_tx':
+					new_cycle = cycle * speed / root_speed
+					transformed_data[speed][joint].append(new_cycle)
+					continue
+					
+				control_gait_phase = get_control_points(cycle)
+				control_angle = np.interp(control_gait_phase, idx, cycle)
+				
+				# apply transformation
+				transformed_gait_phase, transformed_angle = linear_transformation(control_gait_phase, control_angle, linear_models, joint[2:], speed, root_speed)
+				Pchip = PchipInterpolator(transformed_gait_phase, transformed_angle, extrapolate='period')
+				
+				new_cycle = Pchip(idx)
+				transformed_data[speed][joint].append(new_cycle)
+	return transformed_data
 
 if __name__ == "__main__":
-
-	data = load_all_data(root='../../gatech-dataset/dataset_csv')
+	data, joints = load_gatech_data(root='../../gatech-dataset/dataset_csv')
 
 	del data[1.9]
 	del data[1.95]
@@ -66,7 +69,6 @@ if __name__ == "__main__":
 	interpolated_data = interpolate_data(data)
 
 	speeds = list(data.keys())
-	joints = ['Hip', 'Knee', 'Ankle']
 	control_points = {joint: {} for joint in joints}
 	idxs_list = dict()
 	for speed in speeds:
@@ -122,10 +124,11 @@ if __name__ == "__main__":
 			'num_control_point': num_control_point
 		}
 
-	transformed_data = transform_data(data, linear_transformation, linear_models)
 
-	fake_data = interpolate_data(transformed_data)
-	plot_data(fake_data, f'Artificial Data', save=True, scatter=False, close=True)
+	loco_data = extract_locomujoco_data()
+	generated_data = generate_data(loco_data, linear_transformation, linear_models)
+	format_data = to_training_format(generated_data)
 
-	real_data = interpolate_data(data)
-	plot_data(real_data, 'Real Data', save=True, scatter=False, close=True)
+
+	with open('../data/locomujoco_13_speeds_dataset.pkl', 'wb') as f:
+		pickle.dump(format_data, f)

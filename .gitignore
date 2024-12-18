@@ -3,3 +3,4 @@ logs/
 mushroom_rl_recordings/
 ls-iq/
 .ipynb_checkpoints/
+*.pkl

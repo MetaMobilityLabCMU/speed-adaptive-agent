@@ -9,70 +9,112 @@ import pickle
 from scipy import stats
 from tqdm import tqdm
 import copy
+from loco_mujoco import LocoEnv
+import mujoco
+from scipy.signal import find_peaks
 
-def plot_data(data, title, save=False, close=False, scatter=False, folder=None):
-    mpl.rcParams.update({'font.size': 16})
-    
-    speeds = list(data.keys())
-    idxs_list = []
-    joints = ['Hip', 'Knee', 'Ankle']
-    for speed in speeds:
-        idx = np.linspace(0, 1, data[speed]['mean_length']) * 100
-        idxs_list.append(idx)
-        
-    cmap = plt.get_cmap('plasma')
-    norm = plt.Normalize(min(speeds), max(speeds))
-    
-    fig, axs = plt.subplots(3, 1, figsize=(9, 11))
-    
-    for i, joint in enumerate(joints):
-        for j, speed in enumerate(speeds):
-            avg_cycle = np.mean(data[speed]['cycles'][joint], axis=0)
-            axs[i].plot(idxs_list[j], avg_cycle, color=cmap(norm(speed)))
+def extract_locomujoco_data():
+    mdp = LocoEnv.make("HumanoidTorque.walk.real", headless=True, random_start=False, init_step_no=0)
+    num_steps = 89800-1
+    samples = []
+    obss = []
+    mdp._init_step_no = 0
+    mdp.reset()
+    sample = mdp.trajectories.get_current_sample()
+    obs = mdp._create_observation(np.concatenate(sample))
+
+    samples.append(sample)
+    obss.append(obs)
+
+    for j in tqdm(range(num_steps), desc='Loading LocoMuJoCo Data'):
+
+        mdp.set_sim_state(sample)
+
+        mdp._simulation_pre_step()
+        mujoco.mj_forward(mdp._model, mdp._data)
+        mdp._simulation_post_step()
             
-            control_gait_phase = joint_peaks(avg_cycle, joint=joint, normalize=True)
-            control_angle = np.interp(control_gait_phase, idxs_list[j], avg_cycle)
+        sample = mdp.trajectories.get_next_sample()
+        obs = mdp._create_observation(np.concatenate(sample))
+        samples.append(sample)
+        obss.append(obs)
 
-            if scatter:
-                axs[i].scatter(control_gait_phase, control_angle, color='black', s=5, zorder=3)
-            axs[i].set_xlim(-5, 105)
-    
-            if i == 2:
-                axs[i].set_xticks([0, 20, 40, 60, 80, 100])
-                axs[i].set_xlabel("Gait Phase (%)")
-            else:
-                axs[i].tick_params('x', labelbottom=False)
-
-        if joint == 'Hip':
-            axs[i].set_yticks([-20, 0, 20])
-        if joint == 'Knee':
-            axs[i].set_yticks([0, 20, 40, 60])
-        if joint == 'Ankle':
-            axs[i].set_yticks([-20, 0, 20])
-
-        axs[i].yaxis.tick_right()
-        axs[i].set_ylabel(joint)
-                
-    plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.5, hspace=0)
-    fig.subplots_adjust(right=0.7)
-    
-    cbar_ax = fig.add_axes([0.8, 0.15, 0.05, 0.7])
-    cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cbar_ax, orientation='vertical')
-    cbar.set_ticks([min(speeds), max(speeds)])
-    
-    fig.text(0.03, 0.5, 'Angle (deg)', va='center', rotation='vertical', fontdict={'size':22})
-    fig.text(0.41, 0.9, f'{title}', horizontalalignment='center', fontdict={'size':22})
-    fig.text(0.89, 0.5, 'Speed (m/s)', va='center', rotation='vertical', fontdict={'size':22})
-
-    if save:
-        if folder:
-            import os
-            os.makedirs(folder, exist_ok=True) 
-            plt.savefig(f'{folder}/{title}.png')
+    mdp.reset()
+    mdp.stop()
+    joints = [joint[0] for joint in mdp.obs_helper.observation_spec]
+    np_obss = np.array(obss)
+    np_samples = np.array([np.array(sample).flatten() for sample in samples])
+    df = pd.DataFrame()
+    df['Timestep'] = np.arange(len(np_samples))
+    for joint in joints:
+        # skip velocity fields
+        if joint[0] == 'd':
+            continue
+        if joint == 'q_pelvis_tx':
+            df[joint] = np_samples[:, 0].flatten()
+        elif joint == 'q_pelvis_tz':
+            df[joint] = np_samples[:, 1].flatten()
         else:
-            plt.savefig(f'{title}.png')
-    if close:
-        plt.close()
+            joint_idx = mdp.get_obs_idx(joint)
+            df[joint] = np_obss[:, joint_idx].flatten()
+    not_angle_joints = {'Timestep', 'q_pelvis_tx', 'q_pelvis_tz', 'q_pelvis_ty'}
+    for column in df.columns:
+        if column not in not_angle_joints:
+            df[column] = np.rad2deg(df[column])
+    peaks, _ = find_peaks(df['q_hip_flexion_r'], height=10, distance=80)
+    heelstrike = [False] * 89800
+    for peak in peaks:
+        heelstrike[peak] = True
+
+    df['Heelstrike'] = np.array(heelstrike)
+    cycle_idx = 0
+    cycle_idxs = []
+    for heelstrike in df['Heelstrike']:
+        if heelstrike == True:
+            cycle_idx += 1
+        cycle_idxs.append(cycle_idx)
+    df = df.assign(Cycle_Idx = cycle_idxs)
+    counter = Counter(cycle_idxs)
+    proper_cycles_idxs = [idx for idx in counter if counter[idx] > 1]
+
+    cycles = {}
+    for idx in proper_cycles_idxs:
+        df_ = df[df['Cycle_Idx'] == idx]
+        
+        for key in joints:
+            if key[0] != 'd':
+                y = df_[key].to_numpy()
+                if key not in cycles:
+                    cycles[key] = []
+                cycles[key].append(y)
+    return cycles
+
+def to_training_format(data):
+    dt = 0.01
+    simulation_data = {}
+    for speed in tqdm(data, desc='Formatting Data'):
+        simulation_data[speed] = {}
+        for joint in data[speed]:
+            concat_data = np.concatenate(data[speed][joint])
+            if joint not in ['q_pelvis_tx', 'q_pelvis_tz', 'q_pelvis_ty']:
+                concat_data = np.deg2rad(concat_data)
+            if 'knee' in joint:
+                concat_data = -1*concat_data
+            
+            simulation_data[speed][joint] = concat_data   
+            simulation_data[speed]['d'+joint] = np.gradient(concat_data, dt)
+    ignore_keys = ["q_pelvis_tx", "q_pelvis_tz"]
+    mdp = LocoEnv.make("HumanoidTorque.walk.real", headless=True, random_start=False, init_step_no=0)
+    joints = [joint[0] for joint in mdp.obs_helper.observation_spec]
+    training_data = {}
+    for speed in simulation_data:
+        training_data[speed] = {}
+        all_states = np.stack([simulation_data[speed][joint] for joint in joints if joint not in ignore_keys]).T
+        training_data[speed]['states'] = all_states[:-1, :]
+        training_data[speed]['next_states'] = all_states[1:, :]
+        training_data[speed]['absorbing'] = np.zeros(89799)
+        training_data[speed]['last'] = np.concatenate([np.zeros(89799), np.ones(1)])
+    return training_data
 
 def joint_peaks(cycle, joint, normalize=False):
     cycle_length = len(cycle)
@@ -114,11 +156,11 @@ def interpolate_data(data):
         }
     return interpolated_data
 
-def load_all_data(root):
-    subjects = os.listdir(root)
+def load_gatech_data(root):
+    subjects = [fname for fname in os.listdir(root) if 'AB' in fname]
     all_data = dict()
-    for subject in tqdm(subjects, desc='Loading data'):
-        data = load_subject(root=root, subject=subject, plot=False, save=False)
+    for subject in tqdm(subjects, desc='Loading GaTech data'):
+        data, joints = load_subject(root=root, subject=subject, plot=False, save=False)
         for _data in data:
             if _data['speed'] not in all_data:
                 all_data[_data['speed']] = dict()
@@ -127,7 +169,7 @@ def load_all_data(root):
                 'cycles': _data['cycles'],
                 'mean_length': _data['mean_length'],
             }
-    return all_data
+    return all_data, joints
 
 def load_subject(root='../dataset_csv', subject='AB08', activity='treadmill', plot=False, save=False, debug=False):
     # path to files
@@ -148,20 +190,28 @@ def load_subject(root='../dataset_csv', subject='AB08', activity='treadmill', pl
         data.extend(_data)
     
     data.sort(key=lambda _data: _data['speed'])
-    return data
+
+    joints = ik.columns.tolist()
+    joints.remove('Header')
+    return data, joints
     
 def process_csv(ik, conditions, gcRight, debug=False):
     # helper function
     def remove_items(test_list, item): 
         res = [i for i in test_list if i != item] 
         return res 
+
+    columns = ik.columns.tolist()
+    columns.remove('Header')
     
     # Construct dataframe with hip angle, speed and gait
     df = pd.DataFrame()
     df['Time'] = ik['Header']
-    df['Hip'] = ik['hip_flexion_r']
-    df['Knee'] = ik['knee_angle_r'] * -1
-    df['Ankle'] = ik['ankle_angle_r']
+    for key in columns:
+        if 'knee' in key:
+            df[key] = ik[key] * -1
+        else:
+            df[key] = ik[key]
     df['Gait'] = gcRight[gcRight['Header'].isin(df['Time'])]['HeelStrike'].to_numpy()
     df['Speed'] = conditions[conditions['Header'].isin(df['Time'])]['Speed'].to_numpy()
 
@@ -201,7 +251,7 @@ def process_csv(ik, conditions, gcRight, debug=False):
         for idx in proper_cycles_idxs:
             df_ = df_speed[df_speed['Cycle_Idx'] == idx]
             
-            for key in ['Hip', 'Knee', 'Ankle']:
+            for key in columns:
                 y = df_[key].to_numpy()
                 if key not in cycles:
                     cycles[key] = []
