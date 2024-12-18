@@ -68,10 +68,12 @@ def experiment(curriculum_type: str = 'progression',
         core.learn(n_steps=n_steps_per_epoch, n_steps_per_fit=n_steps_per_fit, quiet=True, render=False, target_speed=target_speed)
         # evaluate
         dataset = core.evaluate(n_episodes=n_eval_episodes, target_speed=target_speed)
+        
         R_mean = np.mean(compute_J(dataset))
         J_mean = np.mean(compute_J(dataset, gamma=gamma))
         L = np.mean(compute_episodes_length(dataset))
         S_mean = compute_mean_speed(mdp, dataset)
+        
         logger.log_numpy(Epoch=epoch, R_mean=R_mean, J_mean=J_mean, L=L, S_mean=S_mean, target_speed=target_speed)
         sw.add_scalar("Eval_R-stochastic", R_mean, epoch)
         sw.add_scalar("Eval_J-stochastic", J_mean, epoch)

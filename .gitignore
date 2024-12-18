@@ -1,11 +1,5 @@
 __pycache__/
 logs/
-None/
-dist/
-.pytest_cache/
-.DS_Store
 mushroom_rl_recordings/
-record_all/
-_build/
 ls-iq/
 .ipynb_checkpoints/

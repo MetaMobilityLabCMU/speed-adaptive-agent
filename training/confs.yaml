@@ -1,5 +1,3 @@
-# Configuration files for imitation learning examples
-
 HumanoidTorque:
   algorithm: "SpeedVAIL"
   algorithm_config:
