@@ -17,7 +17,7 @@ code for ICORR 2025 Speed Adaptive Agent paper
 2. You can check the training status with tensorboard `tensorboard --logdir logs`
 3. Model checkpoints will be saved in the `logs` folder
 ## Agent Evaluation
-We provide a jupyter notebook example `training/eval.ipynb` for inferencing a model and calculating its speed and joint angle RMSE/R2 compared to synthetic data.
+Change `model_path` before running the eval script `training/eval.py` for inferencing a model and calculating its speed and joint angle RMSE/R2 compared to synthetic data.
 
 
 ## TODO
