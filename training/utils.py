@@ -6,7 +6,7 @@ import torch.optim as optim
 
 from mushroom_rl.core.serialization import *
 from mushroom_rl.policy import GaussianTorchPolicy
-from mushroom_rl.core import Core
+from mushroom_rl.core import Core, Agent
 
 from imitation_lib.imitation import VAIL_TRPO
 from imitation_lib.utils import FullyConnectedNetwork, NormcInitializer, Standardizer, VariationalNet, VDBLoss
@@ -16,7 +16,8 @@ from speed_vail import SpeedVAIL
 import mujoco
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks
-import tqdm
+from tqdm import tqdm
+from sklearn.metrics import root_mean_squared_error, r2_score
 
 def get_agent(env_id, mdp, use_cuda, sw, conf_path=None):
 
@@ -358,3 +359,68 @@ def interpolate_data(data, mean_length):
         }
         
     return interpolated_data
+
+def calculate_metrics(eval_data, ground_truth):
+    metric = {}
+    for i, eval_data_ in enumerate(eval_data):
+        metric[i] = {}
+        for speed in eval_data_:
+            metric[i][speed] = {}
+            RMSE, R2 = 0, 0
+            for data_joint, eval_joint in zip(['q_hip_flexion_r', 'q_knee_angle_r', 'q_ankle_angle_r'], ['Hip', 'Knee', 'Ankle']):
+                avg_data = np.mean(ground_truth[speed]['cycles'][data_joint], axis=0)
+                avg_eval = np.mean(eval_data_[speed]['data'][eval_joint]['Angle (deg)'], axis=0)
+                avg_eval_interpolated = np.interp(np.linspace(0, 1, num=len(avg_data)), np.linspace(0, 1, num=len(avg_eval)), avg_eval)
+                RMSE += root_mean_squared_error(avg_data, avg_eval_interpolated)
+                R2 += r2_score(avg_data, avg_eval_interpolated)
+            metric[i][speed]['RMSE'] = RMSE/3
+            metric[i][speed]['R2'] = R2/3
+            metric[i][speed]['actual_speed'] = eval_data_[speed]['mean_speed']
+        
+    return metric
+
+def eval_model(mdp, model_file, speed_range, mass, n_trials=5, n_episodes=1, cycle_length_cutoff=40, record=False):
+    agent = Agent.load(model_file)
+    data_dict = {}
+    for target_speed in speed_range:
+        data_dict[target_speed] = {}
+    
+        mdp.set_operate_speed(target_speed)
+        _ = mdp.reset()
+        
+        data, mean_length, speeds = process_data(agent, mdp, n_trials=n_trials, n_episodes=n_episodes, cycle_length_cutoff=cycle_length_cutoff, record=record, is_wrapped=True)
+        data_dict[target_speed]['data'] = data
+        data_dict[target_speed]['mean_length'] = mean_length
+        data_dict[target_speed]['speeds'] = speeds
+
+    processed_datas = []
+    for i in range(n_trials):
+        processed_data = {}
+        HIP_GEAR, KNEE_GEAR, ANKLE_GEAR = 275, 600, 500
+        for speed in data_dict:
+            processed_data[speed] = {
+                'data': {
+                    'Hip': {},
+                    'Knee': {},
+                    'Ankle': {}
+                },
+                'idxs': None,
+            }
+            
+            processed_data[speed]['data']['Hip']['Angle (deg)'] = np.rad2deg(data_dict[speed]['data'][i]['q_hip_flexion_l'])
+            processed_data[speed]['data']['Knee']['Angle (deg)'] = -1*np.rad2deg(data_dict[speed]['data'][i]['q_knee_angle_l'])
+            processed_data[speed]['data']['Ankle']['Angle (deg)'] = np.rad2deg(data_dict[speed]['data'][i]['q_ankle_angle_l'])
+        
+            processed_data[speed]['data']['Hip']['Torque (Nm/kg)'] = -1*data_dict[speed]['data'][i]['mot_hip_flexion_l'] * HIP_GEAR / mass
+            processed_data[speed]['data']['Knee']['Torque (Nm/kg)'] = data_dict[speed]['data'][i]['mot_knee_angle_l'] * KNEE_GEAR / mass
+            processed_data[speed]['data']['Ankle']['Torque (Nm/kg)'] = -1*data_dict[speed]['data'][i]['mot_ankle_angle_l'] * ANKLE_GEAR / mass
+        
+            processed_data[speed]['data']['Hip']['Power (W/kg)'] = np.multiply(data_dict[speed]['data'][i]['dq_hip_flexion_l'], data_dict[speed]['data'][i]['mot_hip_flexion_l'] * HIP_GEAR) / mass
+            processed_data[speed]['data']['Knee']['Power (W/kg)'] = np.multiply(data_dict[speed]['data'][i]['dq_knee_angle_l'], data_dict[speed]['data'][i]['mot_knee_angle_l'] * KNEE_GEAR) / mass
+            processed_data[speed]['data']['Ankle']['Power (W/kg)'] = np.multiply(data_dict[speed]['data'][i]['dq_ankle_angle_l'], data_dict[speed]['data'][i]['mot_ankle_angle_l'] * ANKLE_GEAR) / mass
+        
+            processed_data[speed]['idxs'] = np.linspace(0, 1, data_dict[speed]['mean_length'][i])*100
+            
+            processed_data[speed]['mean_speed'] = round(np.mean(data_dict[speed]['speeds'][i]), 2)
+        processed_datas.append(processed_data)
+    return processed_datas

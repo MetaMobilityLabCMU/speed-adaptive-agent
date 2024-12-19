@@ -127,8 +127,11 @@ if __name__ == "__main__":
 
 	loco_data = extract_locomujoco_data()
 	generated_data = generate_data(loco_data, linear_transformation, linear_models)
+	# for eval
+	with open('../data/locomujoco_13_speeds_dataset_unformatted.pkl', 'wb') as f:
+		pickle.dump(generated_data, f)
+
 	format_data = to_training_format(generated_data)
-
-
+	# for training
 	with open('../data/locomujoco_13_speeds_dataset.pkl', 'wb') as f:
 		pickle.dump(format_data, f)

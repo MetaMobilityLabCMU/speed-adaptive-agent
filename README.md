@@ -12,14 +12,13 @@ code for ICORR 2025 Speed Adaptive Agent paper
 ## Speed-Adaptive-Agent Training
 1. Run `training/launcher.py` will train a speed-adaptive agent with the optimal training
      * Baseline settings: Change the `algorithm` flag in `training/confs.yaml` from `"SpeedVAIL"` to `"VAIL"`
-     * `reward_ratio` changes the speed reward ratio
+     * `reward_ratio` changes the speed reward ratio (float from 0 - 1)
      * `curriculum` changes the training curriculum (available options are 'progression' and 'random') 
 2. You can check the training status with tensorboard `tensorboard --logdir logs`
 3. Model checkpoints will be saved in the `logs` folder
 ## Agent Evaluation
+We provide a jupyter notebook example `training/eval.ipynb` for inferencing a model and calculating its speed and joint angle RMSE/R2 compared to synthetic data.
 
 
 ## TODO
 1. matlab code for generating synthetic dataset
-2. code for evaluation
-3. write README.md
