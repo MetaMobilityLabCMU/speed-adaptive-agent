@@ -10,11 +10,16 @@ code for ICORR 2025 Speed Adaptive Agent paper
 2. Run `data_generation/mat2csv.m` in matlab to convert the treadmill data into csv format
 3. Run `data_generation/generate_synthetic_data.py` to generate the synthetic dataset.
 ## Speed-Adaptive-Agent Training
+1. Run `training/launcher.py` will train a speed-adaptive agent with the optimal training
+     * Baseline settings: Change the `algorithm` flag in `training/confs.yaml` from `"SpeedVAIL"` to `"VAIL"`
+     * `reward_ratio` changes the speed reward ratio
+     * `curriculum` changes the training curriculum (available options are 'progression' and 'random') 
+2. You can check the training status with tensorboard `tensorboard --logdir logs`
+3. Model checkpoints will be saved in the `logs` folder
 ## Agent Evaluation
 
 
 ## TODO
 1. matlab code for generating synthetic dataset
-2. code for training
-3. code for evaluation
-4. write README.md
+2. code for evaluation
+3. write README.md
