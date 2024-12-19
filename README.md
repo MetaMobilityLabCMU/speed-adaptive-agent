@@ -2,6 +2,8 @@
 code for ICORR 2025 Speed Adaptive Agent paper
 
 ## Install Dependencies
+1. Follow the instructions to install LocoMuJoCo [link](https://github.com/robfiras/loco-mujoco)
+2. Follow the instructions to install the imitation library [link](https://github.com/robfiras/ls-iq)
 ## Synthetic Data Generation
 1. Download [Camargo et al. Dataset](https://www.epic.gatech.edu/opensource-biomechanics-camargo-et-al/) from Epic Lab and put it into the `data` folder.
      * Since the entire dataset is quite large, you could only download the treadmill data from each subject, but remember to organize the data in the same folder structure.
