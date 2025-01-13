@@ -1,23 +1,36 @@
+"""
+This module provides utility functions for data interpolation and metric calculation
+used in training and evaluating speed-adaptive agents.
+
+Functions:
+- interpolate_data: Interpolates the given data to a specified mean length.
+- calculate_metrics: Calculates evaluation metrics such as RMSE and R2 score.
+
+Usage:
+Import the required functions and use them to preprocess data and evaluate model performance.
+
+Example:
+    from utils import interpolate_data, calculate_metrics
+
+    interpolated_data = interpolate_data(data, mean_length=100)
+    metrics = calculate_metrics(eval_data, ground_truth)
+"""
+import pickle
+from copy import deepcopy
 import yaml
 import numpy as np
-
 import torch.nn.functional as F
-import torch.optim as optim
-
-from mushroom_rl.core.serialization import *
+from torch import optim
 from mushroom_rl.policy import GaussianTorchPolicy
 from mushroom_rl.core import Core, Agent
-
 from imitation_lib.imitation import VAIL_TRPO
 from imitation_lib.utils import FullyConnectedNetwork, NormcInitializer, Standardizer, VariationalNet, VDBLoss
-
-import pickle
-from speed_vail import SpeedVAIL
 import mujoco
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks
 from tqdm import tqdm
 from sklearn.metrics import root_mean_squared_error, r2_score
+from speed_vail import SpeedVAIL
 
 def get_agent(env_id, mdp, use_cuda, sw, conf_path=None):
 
@@ -237,7 +250,15 @@ def compute_mean_speed(env, dataset):
         speeds.append(dataset[i][0][x_vel_idx])
     return np.mean(speeds)
 
-def process_data(agent, env, n_trials=5, n_episodes=1, cycle_length_cutoff=60, record=False, is_wrapped=False, min_peak=True):
+def process_data(
+        agent,
+        env,
+        n_trials=5,
+        n_episodes=1,
+        cycle_length_cutoff=60,
+        record=False,
+        is_wrapped=False,
+        min_peak=True):
     core = Core(agent, env)
     datasets = []
     for _ in range(n_trials):
@@ -281,9 +302,8 @@ def process_data(agent, env, n_trials=5, n_episodes=1, cycle_length_cutoff=60, r
         for key in act_keys.keys():
             data[key] = np.array(data[key])
         datas.append(data)
-    
     cycless = []
-    for data in datas: 
+    for data in datas:
         if min_peak:
             heel_strikes, _ = find_peaks(-1*data['q_hip_flexion_l'], height=0.2, distance=40)
         else:
@@ -299,7 +319,6 @@ def process_data(agent, env, n_trials=5, n_episodes=1, cycle_length_cutoff=60, r
         print(f'Number of recorded cycle: {len(cycle_lengths)}')
         print(f'Number of effective cycle: {len(cycles[key])}')
         cycless.append(cycles)
-    
     x_vel_idx = env.get_obs_idx("dq_pelvis_tx")
     speedss = []
     for dataset in datasets:
@@ -309,7 +328,6 @@ def process_data(agent, env, n_trials=5, n_episodes=1, cycle_length_cutoff=60, r
         speeds = np.array(speeds)
         print(f'Average speed: {np.mean(speeds)}')
         speedss.append(speeds)
-
     interpolated_cycless = []
     mean_lengths = []
     for cycles in cycless:
@@ -327,40 +345,53 @@ def process_data(agent, env, n_trials=5, n_episodes=1, cycle_length_cutoff=60, r
                 if key not in interpolated_cycles:
                     interpolated_cycles[key] = []
                 interpolated_cycles[key].append(np.array(spl(xnew)))
-
         for key in interpolated_cycles.keys():
             interpolated_cycles[key] = np.array(interpolated_cycles[key])
-
         interpolated_cycless.append(interpolated_cycles)
 
     return interpolated_cycless, mean_lengths, speedss
 
 def interpolate_data(data, mean_length):
+    """
+    Interpolates the given data to a specified mean length.
+
+    Args:
+        data (dict): A dictionary containing the data to be interpolated. The keys are speeds,
+                     and the values are dictionaries with joint names as keys and lists of cycles as values.
+        mean_length (int): The target length for interpolation.
+
+    Returns:
+        dict: A dictionary with the same structure as the input data, but with interpolated cycles.
+    """
     interpolated_data = dict()
-    
-    for speed in tqdm(data, desc='Interpolating Data'):        
+    for speed in tqdm(data, desc='Interpolating Data'):
         interpolated_cycles = {}
-            
         for joint in data[speed]:
             interpolated_cycles[joint] = []
-
             for joint_cycle in data[speed][joint]:
                 x = np.linspace(0, len(joint_cycle)-1, num=len(joint_cycle))
                 xnew = np.linspace(0, len(joint_cycle)-1, num=mean_length)
-                spl = CubicSpline(x, joint_cycle) 
+                spl = CubicSpline(x, joint_cycle)
                 interpolated_cycles[joint].append(spl(xnew))
-                    
         for joint in interpolated_cycles:
             interpolated_cycles[joint] = np.array(interpolated_cycles[joint])
-    
         interpolated_data[speed] = {
             'cycles': interpolated_cycles,
-            'mean_length': mean_length,
-        }
-        
+            'mean_length': mean_length,}
+
     return interpolated_data
 
 def calculate_metrics(eval_data, ground_truth):
+    """
+    Calculates evaluation metrics such as RMSE and R2 score.
+
+    Args:
+        eval_data (dict): A dictionary containing the evaluation data.
+        ground_truth (dict): A dictionary containing the ground truth data.
+
+    Returns:
+        dict: A dictionary containing the calculated metrics.
+    """
     metric = {}
     for i, eval_data_ in enumerate(eval_data):
         metric[i] = {}
@@ -376,7 +407,7 @@ def calculate_metrics(eval_data, ground_truth):
             metric[i][speed]['RMSE'] = RMSE/3
             metric[i][speed]['R2'] = R2/3
             metric[i][speed]['actual_speed'] = eval_data_[speed]['mean_speed']
-        
+
     return metric
 
 def eval_model(mdp, model_file, speed_range, mass, n_trials=5, n_episodes=1, cycle_length_cutoff=40, record=False):
@@ -384,15 +415,12 @@ def eval_model(mdp, model_file, speed_range, mass, n_trials=5, n_episodes=1, cyc
     data_dict = {}
     for target_speed in speed_range:
         data_dict[target_speed] = {}
-    
         mdp.set_operate_speed(target_speed)
         _ = mdp.reset()
-        
         data, mean_length, speeds = process_data(agent, mdp, n_trials=n_trials, n_episodes=n_episodes, cycle_length_cutoff=cycle_length_cutoff, record=record, is_wrapped=True)
         data_dict[target_speed]['data'] = data
         data_dict[target_speed]['mean_length'] = mean_length
         data_dict[target_speed]['speeds'] = speeds
-
     processed_datas = []
     for i in range(n_trials):
         processed_data = {}
@@ -402,25 +430,18 @@ def eval_model(mdp, model_file, speed_range, mass, n_trials=5, n_episodes=1, cyc
                 'data': {
                     'Hip': {},
                     'Knee': {},
-                    'Ankle': {}
-                },
-                'idxs': None,
-            }
-            
+                    'Ankle': {}},
+                'idxs': None,}
             processed_data[speed]['data']['Hip']['Angle (deg)'] = np.rad2deg(data_dict[speed]['data'][i]['q_hip_flexion_l'])
             processed_data[speed]['data']['Knee']['Angle (deg)'] = -1*np.rad2deg(data_dict[speed]['data'][i]['q_knee_angle_l'])
             processed_data[speed]['data']['Ankle']['Angle (deg)'] = np.rad2deg(data_dict[speed]['data'][i]['q_ankle_angle_l'])
-        
             processed_data[speed]['data']['Hip']['Torque (Nm/kg)'] = -1*data_dict[speed]['data'][i]['mot_hip_flexion_l'] * HIP_GEAR / mass
             processed_data[speed]['data']['Knee']['Torque (Nm/kg)'] = data_dict[speed]['data'][i]['mot_knee_angle_l'] * KNEE_GEAR / mass
             processed_data[speed]['data']['Ankle']['Torque (Nm/kg)'] = -1*data_dict[speed]['data'][i]['mot_ankle_angle_l'] * ANKLE_GEAR / mass
-        
             processed_data[speed]['data']['Hip']['Power (W/kg)'] = np.multiply(data_dict[speed]['data'][i]['dq_hip_flexion_l'], data_dict[speed]['data'][i]['mot_hip_flexion_l'] * HIP_GEAR) / mass
             processed_data[speed]['data']['Knee']['Power (W/kg)'] = np.multiply(data_dict[speed]['data'][i]['dq_knee_angle_l'], data_dict[speed]['data'][i]['mot_knee_angle_l'] * KNEE_GEAR) / mass
             processed_data[speed]['data']['Ankle']['Power (W/kg)'] = np.multiply(data_dict[speed]['data'][i]['dq_ankle_angle_l'], data_dict[speed]['data'][i]['mot_ankle_angle_l'] * ANKLE_GEAR) / mass
-        
             processed_data[speed]['idxs'] = np.linspace(0, 1, data_dict[speed]['mean_length'][i])*100
-            
             processed_data[speed]['mean_speed'] = round(np.mean(data_dict[speed]['speeds'][i]), 2)
         processed_datas.append(processed_data)
     return processed_datas
