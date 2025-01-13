@@ -1,3 +1,5 @@
+% Recursively convert all .mat files in a folder to .csv files 
+
 function processFolder(inputFolder, outputFolder)
     % Get the list of all files and subfolders
     entries = dir(inputFolder);

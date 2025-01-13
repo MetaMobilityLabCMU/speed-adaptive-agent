@@ -1,29 +1,12 @@
 """
 This module defines the SpeedCore class, which extends the Core class from mushroom_rl
 to support learning and evaluation with speed adaptation.
-
-Classes:
-- SpeedCore: Extends the Core class to support learning and evaluation with speed adaptation.
-
-Usage:
-Import the SpeedCore class and use it to create an instance for training and evaluating
-agents with speed adaptation in a specified environment.
-
-Example:
-    from speed_core import SpeedCore
-    core = SpeedCore(agent, mdp)
-    core.learn(n_steps=10000, target_speed=1.25)
-    core.evaluate(n_episodes=50, target_speed=1.25)
 """
 from collections import defaultdict
 from mushroom_rl.core import Core
 from tqdm import tqdm
 
 class SpeedCore(Core):
-    """
-    Extends the Core class to support learning and evaluation with speed adaptation.
-
-    """
     def learn(self, n_steps=None, n_episodes=None, n_steps_per_fit=None,
               n_episodes_per_fit=None, render=False, quiet=False, record=False, target_speed=1.25):
         assert (n_episodes_per_fit is not None and n_steps_per_fit is None)\
