@@ -1,5 +1,5 @@
-# speed-adaptive-agent
-code for ICORR 2025 Speed Adaptive Agent paper
+# Learning Speed-Adaptive Walking Agent Using Imitation Learning with Physics-Informed Simulation
+Code for our paper submission to ICORR 2025 | [Arxiv Version](https://arxiv.org/pdf/2412.03949)
 
 ## Install Dependencies
 1. Follow the instructions to install LocoMuJoCo [link](https://github.com/robfiras/loco-mujoco)
