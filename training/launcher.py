@@ -1,26 +1,5 @@
 """
 This script launches experiments for training agents with different parameters.
-
-The launcher is configured to run experiments with specified settings and parameters.
-It uses the `experiment_launcher` module to manage and execute the experiments.
-
-Main steps:
-1. Determine if the script is running locally.
-2. Set up the launcher with experiment configurations.
-3. Define default parameters for the experiments.
-4. Add experiments with varying reward ratios.
-5. Run the experiments.
-
-Parameters:
-- LOCAL (bool): Indicates if the script is running locally.
-- TEST (bool): Indicates if the script is in test mode.
-- USE_CUDA (bool): Indicates if CUDA should be used for training.
-- N_SEEDS (int): Number of seeds for experiment reproducibility.
-- default_params (dict): Default parameters for the experiments.
-- reward_ratios (list): List of reward ratios to use in the experiments.
-
-Usage:
-Run this script as the main module to launch the experiments.
 """
 from experiment_launcher import Launcher
 from experiment_launcher.utils import is_local

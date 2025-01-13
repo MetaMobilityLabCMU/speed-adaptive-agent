@@ -1,19 +1,10 @@
 """
-This module provides utility functions for data interpolation and metric calculation
+This module provides utility functions for model training, data interpolation and metric calculation
 used in training and evaluating speed-adaptive agents.
 
-Functions:
-- interpolate_data: Interpolates the given data to a specified mean length.
-- calculate_metrics: Calculates evaluation metrics such as RMSE and R2 score.
-
-Usage:
-Import the required functions and use them to preprocess data and evaluate model performance.
-
-Example:
-    from utils import interpolate_data, calculate_metrics
-
-    interpolated_data = interpolate_data(data, mean_length=100)
-    metrics = calculate_metrics(eval_data, ground_truth)
+Note:
+    get_agent, create_vail_agent, and create_speed_vail_agent are adapted from the imitation learning example in the `loco-mujoco` repository.
+    Source: https://github.com/robfiras/loco-mujoco/blob/master/examples/imitation_learning/utils.py
 """
 import pickle
 from copy import deepcopy
@@ -63,7 +54,6 @@ def create_vail_agent(mdp, sw, use_cuda, std_0, info_constraint, lr_beta, z_dim,
                       disc_use_next_states, train_disc_n_th_epoch, disc_batch_size, learning_rate_critic,
                       learning_rate_disc, policy_entr_coef, max_kl, n_epochs_cg, use_noisy_targets,
                       last_policy_activation):
-
     mdp_info = deepcopy(mdp.info)
     expert_data = mdp.create_dataset()
 
@@ -139,6 +129,7 @@ def create_vail_agent(mdp, sw, use_cuda, std_0, info_constraint, lr_beta, z_dim,
                       discriminator_params=discriminator_params, critic_params=critic_params,
                       demonstrations=expert_data, **alg_params)
     return agent
+
 def create_speed_vail_agent(mdp, sw, use_cuda, std_0, info_constraint, lr_beta, z_dim, disc_only_states,
                       disc_use_next_states, train_disc_n_th_epoch, disc_batch_size, learning_rate_critic,
                       learning_rate_disc, policy_entr_coef, max_kl, n_epochs_cg, use_noisy_targets,

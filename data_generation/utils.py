@@ -1,10 +1,6 @@
 """
 This module provides utility functions for data extraction, interpolation 
 used in generating and processing data for speed-adaptive agents.
-
-Functions:
-- extract_locomujoco_data: Extracts data from the LocoMuJoCo environment.
-- interpolate_data: Interpolates the given data to a specified mean length.
 """
 
 import os

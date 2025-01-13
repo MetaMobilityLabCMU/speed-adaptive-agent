@@ -2,6 +2,7 @@
 This module generates synthetic data for speed-adaptive agents using linear transformations
 and interpolation techniques.
 """
+
 import os
 import pickle
 import numpy as np

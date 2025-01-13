@@ -29,26 +29,6 @@ def experiment(curriculum_type: str = 'progression',
                results_dir: str = './logs',
                use_cuda: bool = False,
                seed: int = 0):
-    """
-    Run an experiment for training agents with specified parameters.
-
-    Parameters:
-    curriculum_type (str): Type of curriculum to use ('progression' or 'random').
-    reward_ratio (float): Ratio of reward to be used.
-    env_id (str): Identifier for the environment.
-    n_epochs (int): Number of epochs to train.
-    n_steps_per_epoch (int): Number of steps per epoch.
-    n_steps_per_fit (int): Number of steps per fit.
-    n_eval_episodes (int): Number of evaluation episodes.
-    n_epochs_save (int): Number of epochs between saving the agent.
-    gamma (float): Discount factor for the agent.
-    results_dir (str): Directory to save the results.
-    use_cuda (bool): Whether to use CUDA for training.
-    seed (int): Random seed for reproducibility.
-
-    Returns:
-    None
-    """
     os.environ['MUJOCO_GL'] = 'egl'
     np.random.seed(seed)
     torch.random.manual_seed(seed)

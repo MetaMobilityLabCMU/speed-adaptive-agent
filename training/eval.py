@@ -1,16 +1,5 @@
 """
-This script evaluates a trained model on a humanoid locomotion task.
-
-The evaluation process includes:
-1. Loading the environment and physics model.
-2. Loading synthetic ground truth data.
-3. Preprocessing the data to extract relevant features.
-4. Interpolating the data for consistency.
-5. Running the model inference.
-6. Calculating evaluation metrics such as RMSE and R2 score.
-
-Usage:
-Run this script as the main module to perform the evaluation.
+This script evaluates a trained model and calculates RMSE/R2 for against the dataset.
 """
 
 import pickle
