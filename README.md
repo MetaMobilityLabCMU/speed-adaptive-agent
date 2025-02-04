@@ -5,7 +5,7 @@ Code for our paper submission to ICORR 2025 | [Arxiv Version](https://arxiv.org/
 1. Follow the instructions to install LocoMuJoCo [link](https://github.com/robfiras/loco-mujoco)
 2. Follow the instructions to install the imitation library [link](https://github.com/robfiras/ls-iq)
 ## Synthetic Data Generation
-1. Download [Camargo et al. Dataset](https://www.epic.gatech.edu/opensource-biomechanics-camargo-et-al/) from Epic Lab and put it into the `data` folder.
+1. Download and unzip the [Camargo et al. Dataset](https://www.epic.gatech.edu/opensource-biomechanics-camargo-et-al/) from Epic Lab in `data` folder.
      * Since the entire dataset is quite large, you could only download the treadmill data from each subject, but remember to organize the data in the same folder structure.
 2. Run `data_generation/mat2csv.m` in matlab to convert the treadmill data into csv format
 3. Run `data_generation/generate_synthetic_data.py` to generate the synthetic dataset.
@@ -21,4 +21,7 @@ Change `model_path` before running the eval script `training/eval.py` for infere
 
 
 ## TODO
-1. matlab code for generating synthetic dataset
+1. matlab code for generating synthetic dataset, that handles, file structure
+2. add command line script to readme, with cd command to correct folder
+3. explain what to change when training an agent,
+4. add script to plot 3*3 plots and explain what happen when we run eval script

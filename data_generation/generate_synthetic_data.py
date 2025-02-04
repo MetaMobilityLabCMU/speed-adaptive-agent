@@ -59,7 +59,7 @@ def generate_data(cycles, transform, linear_models, root_speed=1.25):
     return transformed_data
 
 if __name__ == "__main__":
-    data, joints = load_gatech_data(root='../../gatech-dataset/dataset_csv')
+    data, joints = load_gatech_data(root='../data/dataset_csv')
 
     del data[1.9]
     del data[1.95]

@@ -1,31 +1,53 @@
 % Recursively convert all .mat files in a folder to .csv files 
 
 clear;
-close all;
 
-folder_name = "treadmill";
-sub_folders = ["ik"; "id"; "conditions"];
+folderPath = '../data/CAMARGO_ET_AL_J_BIOMECH_DATASET';
+folders = dir(folderPath);
+folders = folders([folders.isdir]); % Keep only directories
+subjects = string({folders.name}); % Convert to string array
+subjects = subjects(~ismember(subjects, [".", ".."])); % Exclude '.' and '..'
 
-for k=1:length(sub_folders)
-    mat_path = strcat(folder_name, '/', 'mat', '/', sub_folders(k));
-    csv_path = strcat(folder_name, '/', 'csv', '/', sub_folders(k));
+activity = 'treadmill';
+features = ["ik"; "conditions"; "gcRight"];
 
-    mat_fnames = dir(mat_path);
+mkdir(fullfile('../data/', 'dataset_csv'));
 
-    for j=1:length(mat_fnames)
-        mat_fname = strcat(mat_path, '/', mat_fnames(j).name);
+for i=1:length(subjects)
+    mkdir(fullfile('../data/dataset_csv', subjects(i)));
+    csvPath = strcat('../data/dataset_csv/', subjects(i));
+    mkdir(fullfile(csvPath, activity));
+    csvPath = strcat(csvPath, '/', activity);
 
-        if contains(mat_fname,".mat")
-            csv_fname = strcat(csv_path, '/', strcat(extractBetween(mat_fnames(j).name, 1, strlength(mat_fnames(j).name)-3), 'csv'));
-        
-            temp = load(mat_fname);
-            disp(' ');
-            disp(mat_fname);
-            disp(csv_fname);
-            if contains(mat_fname,"conditions")
-                writetable(temp.labels, csv_fname);
-            else
-                writetable(temp.data, csv_fname);
+    subFolderPath = strcat(folderPath, '/', subjects(i));
+    items = dir(subFolderPath);
+    items = items([items.isdir]); 
+    dateFolder = string({items.name}); 
+    dateFolder = dateFolder(~startsWith(dateFolder, ".") & dateFolder ~= "osimxml");
+    
+    subjectPath = strcat(subFolderPath, '/', dateFolder, '/', activity);
+
+    for j=1:length(features)
+        mkdir(fullfile(csvPath, features(j)));
+        csvFeaturePath = strcat(csvPath, '/', features(j));
+        matFeaturePath = strcat(subjectPath, '/', features(j));
+
+        mat_fnames = dir(matFeaturePath);
+        for k=1:length(mat_fnames)
+            mat_fname = strcat(matFeaturePath, '/', mat_fnames(k).name);
+    
+            if contains(mat_fname,".mat")
+                csv_fname = strcat(csvFeaturePath, '/', strcat(extractBetween(mat_fnames(k).name, 1, strlength(mat_fnames(k).name)-3), 'csv'));
+    
+                temp = load(mat_fname);
+                disp(' ');
+                disp(mat_fname);
+                disp(csv_fname);
+                if contains(mat_fname,"conditions")
+                    writetable(temp.speed, csv_fname);
+                else
+                    writetable(temp.data, csv_fname);
+                end
             end
         end
     end
