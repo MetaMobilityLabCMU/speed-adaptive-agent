@@ -1,3 +1,7 @@
+"""
+This is an experiment file for training agents that get called by launcher.py.
+"""
+
 import os
 import numpy as np
 import torch
@@ -7,14 +11,14 @@ from mushroom_rl.utils.dataset import compute_J, compute_episodes_length
 from mushroom_rl.core.logger.logger import Logger
 from imitation_lib.utils import BestAgentSaver
 from loco_mujoco import LocoEnv
-from utils import get_agent, ProgressionCurriculum, RandomCurriculum, compute_mean_speed
 from tqdm import tqdm
 
+from utils import get_agent, ProgressionCurriculum, RandomCurriculum, compute_mean_speed
 from speed_core import SpeedCore
 from speed_env_wrapper import SpeedWrapper
 
-def experiment(curriculum_type: str = 'progression', 
-               reward_ratio: float = 0.3, 
+def experiment(curriculum_type: str = 'progression',
+               reward_ratio: float = 0.3,
                env_id: str = None,
                n_epochs: int = 500,
                n_steps_per_epoch: int = 10000,
@@ -25,7 +29,6 @@ def experiment(curriculum_type: str = 'progression',
                results_dir: str = './logs',
                use_cuda: bool = False,
                seed: int = 0):
-    
     os.environ['MUJOCO_GL'] = 'egl'
     np.random.seed(seed)
     torch.random.manual_seed(seed)
@@ -65,16 +68,25 @@ def experiment(curriculum_type: str = 'progression',
         # update the environment target speed
         mdp.set_operate_speed(target_speed)
         # train
-        core.learn(n_steps=n_steps_per_epoch, n_steps_per_fit=n_steps_per_fit, quiet=True, render=False, target_speed=target_speed)
+        core.learn(
+            n_steps=n_steps_per_epoch,
+            n_steps_per_fit=n_steps_per_fit,
+            quiet=True,
+            render=False,
+            target_speed=target_speed)
         # evaluate
         dataset = core.evaluate(n_episodes=n_eval_episodes, target_speed=target_speed)
-        
         R_mean = np.mean(compute_J(dataset))
         J_mean = np.mean(compute_J(dataset, gamma=gamma))
         L = np.mean(compute_episodes_length(dataset))
         S_mean = compute_mean_speed(mdp, dataset)
-        
-        logger.log_numpy(Epoch=epoch, R_mean=R_mean, J_mean=J_mean, L=L, S_mean=S_mean, target_speed=target_speed)
+        logger.log_numpy(
+            Epoch=epoch,
+            R_mean=R_mean,
+            J_mean=J_mean,
+            L=L,
+            S_mean=S_mean,
+            target_speed=target_speed)
         sw.add_scalar("Eval_R-stochastic", R_mean, epoch)
         sw.add_scalar("Eval_J-stochastic", J_mean, epoch)
         sw.add_scalar("Eval_L-stochastic", L, epoch)

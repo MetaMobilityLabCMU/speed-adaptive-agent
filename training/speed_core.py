@@ -1,24 +1,12 @@
+"""
+This module defines the SpeedCore class, which extends the Core class from mushroom_rl
+to support learning and evaluation with speed adaptation.
+"""
+from collections import defaultdict
 from mushroom_rl.core import Core
 from tqdm import tqdm
-from collections import defaultdict
 
 class SpeedCore(Core):
-    """
-    Extends the Core class to support learning and evaluation with speed adaptation.
-
-    """
-    def __init__(self, agent, mdp, callbacks_fit=None, callback_step=None, record_dictionary=None):
-        """
-        Args:
-            agent: The agent that will learn and act in the environment.
-            mdp: The environment the agent will interact with.
-            callbacks_fit: Optional list of callbacks to be executed at the end of each fit.
-            callback_step: Optional callback to be executed after each step.
-            record_dictionary: Optional dictionary for recording purposes.
-
-        """
-        super().__init__(agent, mdp, callbacks_fit, callback_step, record_dictionary)
-
     def learn(self, n_steps=None, n_episodes=None, n_steps_per_fit=None,
               n_episodes_per_fit=None, render=False, quiet=False, record=False, target_speed=1.25):
         assert (n_episodes_per_fit is not None and n_steps_per_fit is None)\
@@ -34,7 +22,15 @@ class SpeedCore(Core):
         else:
             fit_condition = lambda: self._current_episodes_counter >= self._n_episodes_per_fit
 
-        self._run(n_steps, n_episodes, fit_condition, render, quiet, record, get_env_info=False, target_speed=target_speed)
+        self._run(
+            n_steps,
+            n_episodes,
+            fit_condition,
+            render,
+            quiet,
+            record,
+            get_env_info=False,
+            target_speed=target_speed)
 
     def evaluate(self, initial_states=None, n_steps=None, n_episodes=None,
                  render=False, quiet=False, record=False, get_env_info=False, target_speed=1.25):
@@ -42,9 +38,28 @@ class SpeedCore(Core):
 
         fit_condition = lambda: False
 
-        return self._run(n_steps, n_episodes, fit_condition, render, quiet, record, get_env_info, initial_states, target_speed=target_speed)
+        return self._run(
+            n_steps,
+            n_episodes,
+            fit_condition,
+            render,
+            quiet,
+            record,
+            get_env_info,
+            initial_states,
+            target_speed=target_speed)
 
-    def _run(self, n_steps, n_episodes, fit_condition, render, quiet, record, get_env_info, initial_states=None, target_speed=1.25):
+    def _run(
+            self,
+            n_steps,
+            n_episodes,
+            fit_condition,
+            render,
+            quiet,
+            record,
+            get_env_info,
+            initial_states=None,
+            target_speed=1.25):
         assert n_episodes is not None and n_steps is None and initial_states is None\
             or n_episodes is None and n_steps is not None and initial_states is None\
             or n_episodes is None and n_steps is None and initial_states is not None
@@ -60,24 +75,42 @@ class SpeedCore(Core):
             move_condition = lambda: self._total_episodes_counter < self._n_episodes
 
             steps_progress_bar = tqdm(disable=True)
-            episodes_progress_bar = tqdm(total=self._n_episodes, dynamic_ncols=True, disable=quiet, leave=False)
+            episodes_progress_bar = tqdm(
+                total=self._n_episodes,
+                dynamic_ncols=True,
+                disable=quiet,
+                leave=False)
 
-        dataset, dataset_info = self._run_impl(move_condition, fit_condition, steps_progress_bar, episodes_progress_bar,
-                                               render, record, initial_states, target_speed=target_speed)
+        dataset, dataset_info = self._run_impl(
+            move_condition,
+            fit_condition,
+            steps_progress_bar,
+            episodes_progress_bar,
+            render,
+            record,
+            initial_states,
+            target_speed=target_speed)
 
         if get_env_info:
             return dataset, dataset_info
-        else:
-            return dataset
+        return dataset
 
-    def _run_impl(self, move_condition, fit_condition, steps_progress_bar, episodes_progress_bar, render, record,
-                  initial_states, target_speed=1.25):
+    def _run_impl(
+            self,
+            move_condition,
+            fit_condition,
+            steps_progress_bar,
+            episodes_progress_bar,
+            render,
+            record,
+            initial_states,
+            target_speed=1.25):
         self._total_episodes_counter = 0
         self._total_steps_counter = 0
         self._current_episodes_counter = 0
         self._current_steps_counter = 0
 
-        dataset = list()
+        dataset = []
         dataset_info = defaultdict(list)
 
         last = True
@@ -113,7 +146,7 @@ class SpeedCore(Core):
                 for c in self.callbacks_fit:
                     c(dataset)
 
-                dataset = list()
+                dataset = []
                 dataset_info = defaultdict(list)
 
             last = sample[-1]
@@ -128,3 +161,4 @@ class SpeedCore(Core):
         episodes_progress_bar.close()
 
         return dataset, dataset_info
+    

@@ -1,20 +1,22 @@
+"""
+This module provides utility functions for data extraction, interpolation 
+used in generating and processing data for speed-adaptive agents.
+"""
+
+import os
+from collections import Counter
 import pandas as pd
 import numpy as np
-from collections import Counter
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from scipy.interpolate import CubicSpline, PchipInterpolator
-import os
-import pickle 
-from scipy import stats
+from scipy.interpolate import CubicSpline
+from scipy.signal import find_peaks
 from tqdm import tqdm
-import copy
 from loco_mujoco import LocoEnv
 import mujoco
-from scipy.signal import find_peaks
 
 def extract_locomujoco_data():
-    mdp = LocoEnv.make("HumanoidTorque.walk.real", headless=True, random_start=False, init_step_no=0)
+    mdp = LocoEnv.make(
+        "HumanoidTorque.walk.real",
+        headless=True, random_start=False, init_step_no=0)
     num_steps = 89800-1
     samples = []
     obss = []
@@ -26,14 +28,11 @@ def extract_locomujoco_data():
     samples.append(sample)
     obss.append(obs)
 
-    for j in tqdm(range(num_steps), desc='Loading LocoMuJoCo Data'):
-
+    for _ in tqdm(range(num_steps), desc='Loading LocoMuJoCo Data'):
         mdp.set_sim_state(sample)
-
         mdp._simulation_pre_step()
         mujoco.mj_forward(mdp._model, mdp._data)
         mdp._simulation_post_step()
-            
         sample = mdp.trajectories.get_next_sample()
         obs = mdp._create_observation(np.concatenate(sample))
         samples.append(sample)
@@ -70,7 +69,7 @@ def extract_locomujoco_data():
     cycle_idx = 0
     cycle_idxs = []
     for heelstrike in df['Heelstrike']:
-        if heelstrike == True:
+        if heelstrike:
             cycle_idx += 1
         cycle_idxs.append(cycle_idx)
     df = df.assign(Cycle_Idx = cycle_idxs)
@@ -80,7 +79,6 @@ def extract_locomujoco_data():
     cycles = {}
     for idx in proper_cycles_idxs:
         df_ = df[df['Cycle_Idx'] == idx]
-        
         for key in joints:
             if key[0] != 'd':
                 y = df_[key].to_numpy()
@@ -100,11 +98,12 @@ def to_training_format(data):
                 concat_data = np.deg2rad(concat_data)
             if 'knee' in joint:
                 concat_data = -1*concat_data
-            
-            simulation_data[speed][joint] = concat_data   
+            simulation_data[speed][joint] = concat_data
             simulation_data[speed]['d'+joint] = np.gradient(concat_data, dt)
     ignore_keys = ["q_pelvis_tx", "q_pelvis_tz"]
-    mdp = LocoEnv.make("HumanoidTorque.walk.real", headless=True, random_start=False, init_step_no=0)
+    mdp = LocoEnv.make(
+        "HumanoidTorque.walk.real",
+        headless=True, random_start=False, init_step_no=0)
     joints = [joint[0] for joint in mdp.obs_helper.observation_spec]
     training_data = {}
     for speed in simulation_data:
@@ -116,7 +115,7 @@ def to_training_format(data):
         training_data[speed]['last'] = np.concatenate([np.zeros(89799), np.ones(1)])
     return training_data
 
-def joint_peaks(cycle, joint, normalize=False):
+def joint_peaks(cycle, normalize=False):
     cycle_length = len(cycle)
     peaks = [round(cycle_length * 0.05 * x) for x in range(20)]
     peaks.append(cycle_length -1)
@@ -128,28 +127,22 @@ def joint_peaks(cycle, joint, normalize=False):
 
 def interpolate_data(data):
     interpolated_data = dict()
-    
     for speed in tqdm(data, desc='Interpolating Data'):
         mean_length = round(np.mean([data[speed][subject]['mean_length'] for subject in data[speed]]))
-        
         interpolated_cycles = {}
         for subject in data[speed]:
             joints = data[speed][subject]['cycles'].keys()
-            
             for joint in joints:
                 joint_cycles = data[speed][subject]['cycles'][joint]
                 if joint not in interpolated_cycles:
                     interpolated_cycles[joint] = []
-    
                 for joint_cycle in joint_cycles:
                     x = np.linspace(0, len(joint_cycle)-1, num=len(joint_cycle))
                     xnew = np.linspace(0, len(joint_cycle)-1, num=mean_length)
-                    spl = CubicSpline(x, joint_cycle) 
+                    spl = CubicSpline(x, joint_cycle)
                     interpolated_cycles[joint].append(spl(xnew))
-                    
-        for joint in interpolated_cycles.keys():
+        for joint in interpolated_cycles:
             interpolated_cycles[joint] = np.array(interpolated_cycles[joint])
-    
         interpolated_data[speed] = {
             'cycles': interpolated_cycles,
             'mean_length': mean_length,
@@ -160,22 +153,22 @@ def load_gatech_data(root):
     subjects = [fname for fname in os.listdir(root) if 'AB' in fname]
     all_data = dict()
     for subject in tqdm(subjects, desc='Loading GaTech data'):
-        data, joints = load_subject(root=root, subject=subject, plot=False, save=False)
+        data, joints = load_subject(root=root, subject=subject)
         for _data in data:
             if _data['speed'] not in all_data:
                 all_data[_data['speed']] = dict()
-                
             all_data[_data['speed']][subject] = {
                 'cycles': _data['cycles'],
                 'mean_length': _data['mean_length'],
             }
     return all_data, joints
 
-def load_subject(root='../dataset_csv', subject='AB08', activity='treadmill', plot=False, save=False, debug=False):
+def load_subject(
+        root='../dataset_csv',
+        subject='AB08',
+        activity='treadmill',
+        debug=False):
     # path to files
-    root = root
-    subject = subject
-    activity = activity
     files = os.listdir(f'{root}/{subject}/{activity}/ik')
 
     # process data
@@ -188,22 +181,20 @@ def load_subject(root='../dataset_csv', subject='AB08', activity='treadmill', pl
         gcRight = pd.read_csv(f'{root}/{subject}/{activity}/gcRight/{file}')
         _data = process_csv(ik, conditions, gcRight, debug=debug)
         data.extend(_data)
-    
     data.sort(key=lambda _data: _data['speed'])
 
     joints = ik.columns.tolist()
     joints.remove('Header')
     return data, joints
-    
+
 def process_csv(ik, conditions, gcRight, debug=False):
     # helper function
-    def remove_items(test_list, item): 
-        res = [i for i in test_list if i != item] 
-        return res 
+    def remove_items(test_list, item):
+        res = [i for i in test_list if i != item]
+        return res
 
     columns = ik.columns.tolist()
     columns.remove('Header')
-    
     # Construct dataframe with hip angle, speed and gait
     df = pd.DataFrame()
     df['Time'] = ik['Header']
@@ -236,21 +227,17 @@ def process_csv(ik, conditions, gcRight, debug=False):
         # get rid of the first and last cycles
         cycle_idxs = remove_items(cycle_idxs, 0)
         cycle_idxs = remove_items(cycle_idxs, cycle_idx)
-        
         # get cycles that are longer than 1
         counter = Counter(cycle_idxs)
         proper_cycles_idxs = [idx for idx in counter if counter[idx] > 1]
-        
         num_cycle = len(proper_cycles_idxs)
         mean_length = round(np.mean([counter[idx] for idx in proper_cycles_idxs]))
         if debug:
             print(f'number of cycles: {num_cycle}')
             print(f'mean length of cycles: {mean_length}')
-        
         cycles = {}
         for idx in proper_cycles_idxs:
             df_ = df_speed[df_speed['Cycle_Idx'] == idx]
-            
             for key in columns:
                 y = df_[key].to_numpy()
                 if key not in cycles:

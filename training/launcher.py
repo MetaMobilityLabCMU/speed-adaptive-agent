@@ -1,3 +1,6 @@
+"""
+This script launches experiments for training agents with different parameters.
+"""
 from experiment_launcher import Launcher
 from experiment_launcher.utils import is_local
 
@@ -9,21 +12,22 @@ if __name__ == '__main__':
 
     N_SEEDS = 1
 
-    launcher = Launcher(exp_name='13_speeds_reward_ratio',
-                        exp_file='experiment',
-                        n_seeds=N_SEEDS,
-                        n_exps_in_parallel=1, 
-                        use_timestamp=True,
-                        )
+    launcher = Launcher(
+        exp_name='13_speeds_reward_ratio',
+        exp_file='experiment',
+        n_seeds=N_SEEDS,
+        n_exps_in_parallel=1,
+        use_timestamp=True,)
 
-    default_params = dict(n_epochs=4000,
-                          n_steps_per_epoch=5000,
-                          n_epochs_save=100,
-                          n_eval_episodes=5,
-                          n_steps_per_fit=1000,
-                          use_cuda=USE_CUDA,
-                          env_id="HumanoidTorque.walk",
-                          curriculum='progression',)
+    default_params = dict(
+        n_epochs=4000,
+        n_steps_per_epoch=5000,
+        n_epochs_save=100,
+        n_eval_episodes=5,
+        n_steps_per_fit=1000,
+        use_cuda=USE_CUDA,
+        env_id="HumanoidTorque.walk",
+        curriculum_type='progression',)
 
     reward_ratios = [0.3]
 
