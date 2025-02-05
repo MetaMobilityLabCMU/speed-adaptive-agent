@@ -19,7 +19,7 @@ Next run the matlab script to convert all the .mat files to csv format in `data/
 > [!NOTE]
 > you could also run `mat2csv.m` in matlab UI if matlab is not in the system PATH
 ```bash
-cd data_generation
+cd data
 matlab -nodisplay -nosplash -nodesktop  -r "mat2csv; exit"
 ```
 Lastly, we could generate the synthetic dataset by running
