@@ -27,7 +27,7 @@ if __name__ == '__main__':
         n_steps_per_fit=1000,
         use_cuda=USE_CUDA,
         env_id="HumanoidTorque.walk",
-        curriculum='progression',)
+        curriculum_type='progression',)
 
     reward_ratios = [0.3]
 

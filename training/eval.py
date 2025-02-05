@@ -3,17 +3,23 @@ This script evaluates a trained model and calculates RMSE/R2 for against the dat
 """
 
 import pickle
+import argparse
 import os
 import loco_mujoco
 from loco_mujoco import LocoEnv
 import numpy as np
 from dm_control.mujoco import Physics
 from scipy.signal import find_peaks
-from sklearn.metrics import root_mean_squared_error, r2_score
-from utils import interpolate_data, eval_model, calculate_metrics
+from sklearn.metrics import r2_score
+from utils import interpolate_data, eval_model, calculate_metrics, root_mean_squared_error
 from speed_env_wrapper import SpeedWrapper
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Evaluate model by providing model checkpoint')
+    parser.add_argument('--model_path', type=str, help='Path to model checkpoint')
+    args = parser.parse_args()
+    assert args.model_path is not None, 'Please provide model checkpoint path'
+
     library_path = os.path.dirname(loco_mujoco.__file__)
     file_path = os.path.join(
         library_path,
@@ -48,7 +54,7 @@ if __name__ == "__main__":
     interpolated_data = interpolate_data(min_peak_synthetic_data, 114)
 
     # Specify model path
-    model_path = 'path/to/your/model'
+    model_path = args.model_path
 
     # Model inference and calculate RMSE and R2
     results = eval_model(

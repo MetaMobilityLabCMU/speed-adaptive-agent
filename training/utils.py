@@ -20,8 +20,11 @@ import mujoco
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks
 from tqdm import tqdm
-from sklearn.metrics import root_mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 from speed_vail import SpeedVAIL
+
+def root_mean_squared_error(y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_true, y_pred))
 
 def get_agent(env_id, mdp, use_cuda, sw, conf_path=None):
 
@@ -136,7 +139,7 @@ def create_speed_vail_agent(mdp, sw, use_cuda, std_0, info_constraint, lr_beta, 
                       last_policy_activation):
     mdp_info = deepcopy(mdp.info)
 
-    with open('locomujoco_13_speeds_dataset.pkl', 'rb') as f:
+    with open('../data/locomujoco_13_speeds_dataset.pkl', 'rb') as f:
         expert_data = pickle.load(f)
 
     trpo_standardizer = Standardizer(use_cuda=use_cuda)
